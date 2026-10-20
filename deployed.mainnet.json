@@ -1,0 +1,10 @@
+{
+ "address": "0x02e584e60a67435E9495508cF1c033F921b581F8",
+ "deploy": "5307dd46c40b0d3a5a276c06bd3685e9a695aa6476173819f7a97c1ebe9f7598",
+ "create": "8824b1eb024fab97c83d966e8d30cb79a39160f3fd7d81acdbd4c2671ac0e064",
+ "claim": "c73034282b722e6471879b8e0de92e8547f9a0334f2d532ba18b98f0a389ac05",
+ "gas_usdc": 0.026478669,
+ "balance_before": 0.445229623,
+ "balance_after": 0.418750954,
+ "contract_balance": 0.0
+}

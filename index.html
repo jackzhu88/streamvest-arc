@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>StreamVest on Arc</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>body{font-family:system-ui;max-width:720px;margin:2rem auto;padding:0 1rem}input,button,select{padding:.5rem;margin:.2rem 0;width:100%;box-sizing:border-box}button{cursor:pointer}.row{display:flex;gap:.5rem}.card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}code{word-break:break-all}progress{width:100%}</style></head>
+<body><h1>StreamVest</h1><p>Lock USDC for someone and let it vest over time. The beneficiary claims what has vested, and the payer can revoke a revocable schedule to get back the unvested part. Runs on Arc, where USDC is the gas token.</p>
+<label>Contract address <input id="addr"></label>
+<button id="connect">Connect wallet</button><div id="who"></div>
+<div class="card"><h3>New vesting schedule</h3>
+<label>Beneficiary address<input id="ben"></label>
+<label>Amount (USDC)<input id="amt" placeholder="1.0"></label>
+<label>Cliff (days)<input id="cliff" value="0"></label>
+<label>Total duration (days)<input id="dur" value="30"></label>
+<label>Revocable<select id="rev"><option value="1">Yes</option><option value="0">No</option></select></label>
+<label>Memo<input id="memo" placeholder="October contributor grant"></label>
+<button id="create">Lock &amp; start vesting</button></div>
+<div class="card"><h3>Schedules</h3><button id="load">Load schedules</button><div id="list"></div></div>
+<p id="status"></p>
+<script>
+const DEF="0x02e584e60a67435E9495508cF1c033F921b581F8";
+const NETS={5042:{name:"Arc Mainnet",rpc:"https://rpc.mainnet.arc.io",exp:"https://explorer.arc.io"},5042002:{name:"Arc Testnet",rpc:"https://rpc.testnet.arc.io",exp:"https://explorer.testnet.arc.io"}};
+const q=new URLSearchParams(location.search),$=id=>document.getElementById(id);
+let abi,signer,net=NETS[5042];$('addr').value=q.get('c')||DEF;
+const st=t=>$('status').innerHTML=t,f=x=>ethers.formatEther(x);
+fetch('StreamVest.json').then(r=>r.json()).then(j=>abi=j.abi);
+const C=()=>new ethers.Contract($('addr').value,abi,signer||new ethers.JsonRpcProvider(NETS[5042].rpc));
+$('connect').onclick=async()=>{const p=new ethers.BrowserProvider(window.ethereum);await p.send('eth_requestAccounts',[]);signer=await p.getSigner();net=NETS[Number((await p.getNetwork()).chainId)];$('who').textContent=(await signer.getAddress())+' on '+(net?net.name:'unsupported network')};
+const link=h=>net?`<a target=_blank href="${net.exp}/tx/${h}">${h}</a>`:h;
+async function send(p){st('Waiting for wallet…');const tx=await p;st('Sent '+link(tx.hash));await tx.wait();st('Confirmed '+link(tx.hash));}
+$('create').onclick=async()=>{try{const d=86400;await send(C().create($('ben').value.trim(),0,Math.round($('cliff').value*d),Math.round($('dur').value*d),$('rev').value==='1',$('memo').value,{value:ethers.parseEther($('amt').value)}))}catch(e){st('Error: '+(e.shortMessage||e.message))}};
+$('load').onclick=async()=>{const c=C();const n=Number(await c.count());let h='';for(let i=n-1;i>=0&&i>=n-20;i--){const s=await c.getSchedule(i);const cl=await c.claimable(i);const v=s.claimed+cl;
+ h+=`<div class=card><b>#${i} ${s.memo}</b> — ${f(s.total)} USDC ${s.revokedAt>0n?'(revoked)':''}<br><progress max="${s.total}" value="${v}"></progress>vested ${f(v)} · claimed ${f(s.claimed)} · claimable ${f(cl)}<br>
+ payer <code>${s.payer}</code><br>beneficiary <code>${s.beneficiary}</code><br>start ${new Date(Number(s.start)*1000).toLocaleString()} · cliff ${Number(s.cliff)/86400}d · duration ${Number(s.duration)/86400}d
+ <div class=row><button onclick="act('claim',${i})">Claim</button>${s.revocable&&s.revokedAt==0n?`<button onclick="act('revoke',${i})">Revoke (payer)</button>`:''}</div></div>`}
+ $('list').innerHTML=h||'No schedules yet'};
+window.act=async(fn,i)=>{try{await send(C()[fn](i))}catch(e){st('Error: '+(e.shortMessage||e.message))}};
+</script></body></html>
